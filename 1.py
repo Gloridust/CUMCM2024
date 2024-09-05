@@ -1,151 +1,67 @@
 import pandas as pd
 import numpy as np
-from pyomo.environ import *
-from pyomo.opt import SolverFactory
 
-# 读取数据
-crops_data = pd.read_csv('./attachment/附件2.csv')
-land_data = pd.read_csv('./attachment/附件1.csv')
+# 读取附件数据
+df1_1 = pd.read_csv('./attachment/附件1-1.csv')
+df1_2 = pd.read_csv('./attachment/附件1-2.csv')
+df2_1 = pd.read_csv('./attachment/附件2-1.csv')
+df2_2 = pd.read_csv('./attachment/附件2-2.csv')
 
-# 预处理数据
-crops_data['平均亩产量'] = crops_data['亩产量/斤']
-crops_data['平均销售单价'] = (crops_data['销售单价/(元/斤)'].str.split('-').apply(lambda x: (float(x[0]) + float(x[1])) / 2))
-crops_data['平均利润'] = crops_data['平均亩产量'] * crops_data['平均销售单价'] - crops_data['种植成本/(元/亩)']
+# 检查 df2_1 是否有 '地块类型' 列
+if '地块类型' not in df2_1.columns:
+    # 根据种植地块关联 df1_1 获取地块类型
+    df2_1 = df2_1.merge(df1_1[['地块名称', '地块类型']], on='种植地块')
 
-# 创建作物字典
-crops = {}
-for _, row in crops_data.iterrows():
-    key = (row['作物编号'], row['作物名称'], row['地块类型'], row['种植季次'])
-    crops[key] = {
-        'yield': row['平均亩产量'],
-        'price': row['平均销售单价'],
-        'cost': row['种植成本/(元/亩)'],
-        'profit': row['平均利润']
-    }
+# 合并相关数据
+df = pd.merge(df2_1, df2_2, on=['作物编号', '作物名称', '种植季次'])
 
-# 创建地块字典
-land_types = {
-    '平旱地': 1201 * 0.3,
-    '梯田': 1201 * 0.3,
-    '山坡地': 1201 * 0.3,
-    '水浇地': 1201 * 0.1,
-    '普通大棚': 16 * 0.6,
-    '智慧大棚': 4 * 0.6
-}
+# 定义函数计算收益
+def calculate_profit(row, case):
+    if case == 1:  # 情况 1：超过部分滞销，造成浪费
+        if row['总产量'] <= row['预期销售量']:
+            profit = (row['销售单价'] - row['种植成本']) * row['种植面积']
+        else:
+            profit = (row['销售单价'] - row['种植成本']) * row['预期销售量'] - row['种植成本'] * (row['总产量'] - row['预期销售量'])
+    elif case == 2:  # 情况 2：超过部分按 2023 年销售价格的 50%降价出售
+        profit = (row['销售单价'] - row['种植成本']) * row['种植面积']
+        if row['总产量'] > row['预期销售量']:
+            profit += 0.5 * row['销售单价'] * (row['总产量'] - row['预期销售量']) - row['种植成本'] * (row['总产量'] - row['预期销售量'])
+    return profit
 
-# 定义模型
-model = ConcreteModel()
+# 情况 1
+result1_1 = []
+for year in range(2024, 2031):
+    for plot in df1_1['地块名称'].unique():
+        for crop in df1_2['作物编号'].unique():
+            # 筛选出符合条件的种植记录
+            sub_df = df[(df['种植地块'] == plot) & (df['作物编号'] == crop)]
+            if not sub_df.empty:
+                # 计算总产量
+                total_yield = sub_df['亩产量'] * sub_df['种植面积'].sum()
+                # 计算预期销售量
+                expected_sales = sub_df['预期销售量'].sum()
+                # 计算收益
+                profit = calculate_profit(sub_df.iloc[0], 1)
+                result1_1.append([year, plot, crop, sub_df['作物名称'].iloc[0], sub_df['作物类型'].iloc[0], sub_df['种植面积'].sum(), sub_df['种植季次'].iloc[0], total_yield, expected_sales, profit])
+result1_1_df = pd.DataFrame(result1_1, columns=['年份', '地块名称', '作物编号', '作物名称', '作物类型', '种植面积', '种植季次', '总产量', '预期销售量', '收益'])
 
-# 定义集合
-model.YEARS = RangeSet(2024, 2030)
-model.LANDS = Set(initialize=land_types.keys())
-model.CROPS = RangeSet(1, 41)
-model.SEASONS = Set(initialize=['单季', '第一季', '第二季'])
+# 情况 2
+result1_2 = []
+for year in range(2024, 2031):
+    for plot in df1_1['地块名称'].unique():
+        for crop in df1_2['作物编号'].unique():
+            # 筛选出符合条件的种植记录
+            sub_df = df[(df['种植地块'] == plot) & (df['作物编号'] == crop)]
+            if not sub_df.empty:
+                # 计算总产量
+                total_yield = sub_df['亩产量'] * sub_df['种植面积'].sum()
+                # 计算预期销售量
+                expected_sales = sub_df['预期销售量'].sum()
+                # 计算收益
+                profit = calculate_profit(sub_df.iloc[0], 2)
+                result1_2.append([year, plot, crop, sub_df['作物名称'].iloc[0], sub_df['作物类型'].iloc[0], sub_df['种植面积'].sum(), sub_df['种植季次'].iloc[0], total_yield, expected_sales, profit])
+result1_2_df = pd.DataFrame(result1_2, columns=['年份', '地块名称', '作物编号', '作物名称', '作物类型', '种植面积', '种植季次', '总产量', '预期销售量', '收益'])
 
-# 定义决策变量
-model.x = Var(model.LANDS, model.CROPS, model.SEASONS, model.YEARS, domain=NonNegativeReals)
-model.y = Var(model.CROPS, model.YEARS, domain=NonNegativeReals)  # 实际销售量
-
-# 非线性收益函数
-def revenue_rule(model, c, t):
-    expected_sales = 0.8 * max(crops.get((c, crops_data.loc[crops_data['作物编号'] == c, '作物名称'].values[0], l, s), {}).get('yield', 0) 
-                               for l in model.LANDS for s in model.SEASONS)
-    price = crops.get((c, crops_data.loc[crops_data['作物编号'] == c, '作物名称'].values[0], list(model.LANDS)[0], list(model.SEASONS)[0]), {}).get('price', 0)
-    
-    if model.y[c, t] <= expected_sales:
-        return price * model.y[c, t]
-    else:
-        return price * expected_sales + 0.5 * price * (model.y[c, t] - expected_sales)
-
-model.revenue = Expression(model.CROPS, model.YEARS, rule=revenue_rule)
-
-# 目标函数
-def obj_rule(model):
-    return sum(model.revenue[c, t] for c in model.CROPS for t in model.YEARS) - \
-           sum(crops.get((c, crops_data.loc[crops_data['作物编号'] == c, '作物名称'].values[0], l, s), {}).get('cost', 0) * model.x[l, c, s, t]
-               for l in model.LANDS for c in model.CROPS for s in model.SEASONS for t in model.YEARS)
-
-model.obj = Objective(rule=obj_rule, sense=maximize)
-
-# 约束条件
-# 1. 土地面积约束
-def land_constraint(model, l, t):
-    if l in ['平旱地', '梯田', '山坡地', '水浇地']:
-        return sum(model.x[l, c, '单季', t] for c in model.CROPS) <= land_types[l]
-    elif l == '普通大棚':
-        return (sum(model.x[l, c, '第一季', t] for c in model.CROPS) <= land_types[l]) and \
-               (sum(model.x[l, c, '第二季', t] for c in model.CROPS) <= land_types[l])
-    elif l == '智慧大棚':
-        return (sum(model.x[l, c, '第一季', t] for c in model.CROPS) <= land_types[l]) and \
-               (sum(model.x[l, c, '第二季', t] for c in model.CROPS) <= land_types[l])
-
-model.land_constraint = Constraint(model.LANDS, model.YEARS, rule=land_constraint)
-
-# 2. 作物轮作约束
-def crop_rotation(model, l, t):
-    return sum(model.x[l, c, s, t] for c in [1,2,3,4,5,17,18,19] for s in model.SEASONS) >= 0.1 * land_types[l]
-
-model.crop_rotation = Constraint(model.LANDS, model.YEARS, rule=crop_rotation)
-
-# 3. 产量平衡约束
-def yield_balance(model, c, t):
-    return model.y[c, t] == sum(crops.get((c, crops_data.loc[crops_data['作物编号'] == c, '作物名称'].values[0], l, s), {}).get('yield', 0) * model.x[l, c, s, t]
-                                for l in model.LANDS for s in model.SEASONS)
-
-model.yield_balance = Constraint(model.CROPS, model.YEARS, rule=yield_balance)
-
-# 4. 连续种植限制
-def continuous_planting(model, l, c, t):
-    if t > 2024:
-        return model.x[l, c, '单季', t] + sum(model.x[l, c, s, t] for s in ['第一季', '第二季']) <= \
-               land_types[l] - (model.x[l, c, '单季', t-1] + sum(model.x[l, c, s, t-1] for s in ['第一季', '第二季']))
-    else:
-        return Constraint.Skip
-
-model.continuous_planting = Constraint(model.LANDS, model.CROPS, model.YEARS, rule=continuous_planting)
-
-# 5. 种植季节限制
-def season_constraint(model, l, c, s, t):
-    if (l in ['平旱地', '梯田', '山坡地'] and s != '单季') or \
-       (l == '水浇地' and s == '单季' and c != 16) or \
-       (l == '普通大棚' and s == '单季') or \
-       (l == '智慧大棚' and s == '单季') or \
-       (l == '普通大棚' and s == '第二季' and c not in [38, 39, 40, 41]) or \
-       (c in [35, 36, 37] and (l != '水浇地' or s != '第二季')):
-        return model.x[l, c, s, t] == 0
-    else:
-        return Constraint.Skip
-
-model.season_constraint = Constraint(model.LANDS, model.CROPS, model.SEASONS, model.YEARS, rule=season_constraint)
-
-# 求解模型
-solver = SolverFactory('ipopt')
-results = solver.solve(model, tee=True)
-
-# 检查求解状态
-if (results.solver.status == SolverStatus.ok) and (results.solver.termination_condition == TerminationCondition.optimal):
-    print("Optimal solution found.")
-else:
-    print("Solver did not find an optimal solution.")
-
-# 输出结果
-print("Optimal Profit:", value(model.obj))
-
-# 将结果保存到Excel文件
-results = []
-for l in model.LANDS:
-    for c in model.CROPS:
-        for s in model.SEASONS:
-            for t in model.YEARS:
-                if value(model.x[l, c, s, t]) > 0.01:  # 只保存大于0.01的结果，避免舍入误差
-                    results.append({
-                        '年份': t,
-                        '地块类型': l,
-                        '作物编号': c,
-                        '作物名称': crops_data.loc[crops_data['作物编号'] == c, '作物名称'].values[0],
-                        '种植季次': s,
-                        '种植面积': value(model.x[l, c, s, t])
-                    })
-
-results_df = pd.DataFrame(results)
-results_df.to_excel('result1_2.xlsx', index=False)
+# 将结果保存到 Excel 文件中
+result1_1_df.to_excel('result1_1.xlsx', index=False)
+result1_2_df.to_excel('result1_2.xlsx', index=False)
