@@ -1,6 +1,6 @@
 import numpy as np
 
-def calculate_costs(params, decisions):
+def calculate_cost(params, decisions):
     """
     计算给定决策下的总成本
     
@@ -8,131 +8,137 @@ def calculate_costs(params, decisions):
     decisions: 包含所有决策的字典
     """
     total_cost = 0
-    revenue = 0
     
-    # 零配件成本
-    for i in [1, 2]:
-        component_cost = params[f'component_{i}_price'] * (1 + params[f'component_{i}_defect_rate'])
-        if decisions[f'inspect_component_{i}']:
-            component_cost += params[f'component_{i}_inspect_cost']
-        total_cost += component_cost
-
+    # 零配件1成本
+    if decisions['inspect_part1']:
+        total_cost += params['part1_cost'] + params['part1_inspect_cost']
+    else:
+        total_cost += params['part1_cost']
+    
+    # 零配件2成本
+    if decisions['inspect_part2']:
+        total_cost += params['part2_cost'] + params['part2_inspect_cost']
+    else:
+        total_cost += params['part2_cost']
+    
     # 装配成本
     total_cost += params['assembly_cost']
-
+    
     # 成品检测成本
     if decisions['inspect_product']:
         total_cost += params['product_inspect_cost']
-
-    # 计算成品的有效率
-    effective_rate = 1
-    for i in [1, 2]:
-        if not decisions[f'inspect_component_{i}']:
-            effective_rate *= (1 - params[f'component_{i}_defect_rate'])
-    effective_rate *= (1 - params['product_defect_rate'])
-
-    if decisions['inspect_product']:
-        passed_rate = effective_rate
+    
+    # 不合格品处理成本
+    defect_rate = params['product_defect_rate']
+    if decisions['disassemble_defects']:
+        total_cost += defect_rate * params['disassemble_cost']
     else:
-        passed_rate = 1
-
-    # 收入和调换损失
-    revenue = params['product_price'] * passed_rate
-    exchange_loss = params['product_price'] * (1 - effective_rate) * params['exchange_loss_rate']
-
-    # 拆解决策
-    if decisions['disassemble_defective']:
-        disassemble_cost = (1 - effective_rate) * params['disassemble_cost']
-        recycle_gain = (1 - effective_rate) * (params['component_1_price'] * (1 - params['component_1_defect_rate']) +
-                                               params['component_2_price'] * (1 - params['component_2_defect_rate']))
-        total_cost += disassemble_cost - recycle_gain
-    else:
-        total_cost += (1 - effective_rate) * (params['component_1_price'] + params['component_2_price'])
-
-    net_profit = revenue - total_cost - exchange_loss
-    return net_profit, total_cost, revenue, exchange_loss
+        total_cost += defect_rate * (params['part1_cost'] + params['part2_cost'] + params['assembly_cost'])
+    
+    # 市场调换损失
+    if not decisions['inspect_product']:
+        total_cost += defect_rate * params['replacement_cost']
+    
+    return total_cost
 
 def optimize_decisions(params):
     """
-    优化决策以最大化净利润
+    优化决策，返回最优决策和对应的成本
     
     params: 包含所有参数的字典
     """
-    best_profit = -np.inf
+    best_cost = float('inf')
     best_decisions = {}
     
-    for inspect_1 in [True, False]:
-        for inspect_2 in [True, False]:
+    for inspect_part1 in [True, False]:
+        for inspect_part2 in [True, False]:
             for inspect_product in [True, False]:
-                for disassemble in [True, False]:
+                for disassemble_defects in [True, False]:
                     decisions = {
-                        'inspect_component_1': inspect_1,
-                        'inspect_component_2': inspect_2,
+                        'inspect_part1': inspect_part1,
+                        'inspect_part2': inspect_part2,
                         'inspect_product': inspect_product,
-                        'disassemble_defective': disassemble
+                        'disassemble_defects': disassemble_defects
                     }
-                    profit, cost, revenue, exchange_loss = calculate_costs(params, decisions)
-                    if profit > best_profit:
-                        best_profit = profit
-                        best_decisions = decisions.copy()
-                        best_metrics = {
-                            'profit': profit,
-                            'cost': cost,
-                            'revenue': revenue,
-                            'exchange_loss': exchange_loss
-                        }
+                    cost = calculate_cost(params, decisions)
+                    if cost < best_cost:
+                        best_cost = cost
+                        best_decisions = decisions
     
-    return best_decisions, best_metrics
+    return best_decisions, best_cost
 
-# 主程序
-if __name__ == "__main__":
-    scenarios = [
+def analyze_situation(situation):
+    """
+    分析给定情况并返回最优决策
+    
+    situation: 包含所有参数的字典
+    """
+    params = {
+        'part1_defect_rate': situation['part1_defect_rate'],
+        'part1_cost': situation['part1_cost'],
+        'part1_inspect_cost': situation['part1_inspect_cost'],
+        'part2_defect_rate': situation['part2_defect_rate'],
+        'part2_cost': situation['part2_cost'],
+        'part2_inspect_cost': situation['part2_inspect_cost'],
+        'product_defect_rate': situation['product_defect_rate'],
+        'assembly_cost': situation['assembly_cost'],
+        'product_inspect_cost': situation['product_inspect_cost'],
+        'market_price': situation['market_price'],
+        'replacement_cost': situation['replacement_cost'],
+        'disassemble_cost': situation['disassemble_cost']
+    }
+    
+    best_decisions, best_cost = optimize_decisions(params)
+    
+    return best_decisions, best_cost
+
+# 完整的六种情况数据
+situations = [
     {
-        'component_1_defect_rate': 0.10, 'component_1_price': 4, 'component_1_inspect_cost': 2,
-        'component_2_defect_rate': 0.10, 'component_2_price': 18, 'component_2_inspect_cost': 3,
+        'part1_defect_rate': 0.10, 'part1_cost': 4, 'part1_inspect_cost': 2,
+        'part2_defect_rate': 0.10, 'part2_cost': 18, 'part2_inspect_cost': 3,
         'product_defect_rate': 0.10, 'assembly_cost': 6, 'product_inspect_cost': 3,
-        'product_price': 56, 'exchange_loss_rate': 6/56, 'disassemble_cost': 5
+        'market_price': 56, 'replacement_cost': 6, 'disassemble_cost': 5
     },
     {
-        'component_1_defect_rate': 0.20, 'component_1_price': 4, 'component_1_inspect_cost': 2,
-        'component_2_defect_rate': 0.20, 'component_2_price': 18, 'component_2_inspect_cost': 3,
+        'part1_defect_rate': 0.20, 'part1_cost': 4, 'part1_inspect_cost': 2,
+        'part2_defect_rate': 0.20, 'part2_cost': 18, 'part2_inspect_cost': 3,
         'product_defect_rate': 0.20, 'assembly_cost': 6, 'product_inspect_cost': 3,
-        'product_price': 56, 'exchange_loss_rate': 6/56, 'disassemble_cost': 5
+        'market_price': 56, 'replacement_cost': 6, 'disassemble_cost': 5
     },
     {
-        'component_1_defect_rate': 0.10, 'component_1_price': 4, 'component_1_inspect_cost': 2,
-        'component_2_defect_rate': 0.10, 'component_2_price': 18, 'component_2_inspect_cost': 3,
+        'part1_defect_rate': 0.10, 'part1_cost': 4, 'part1_inspect_cost': 2,
+        'part2_defect_rate': 0.10, 'part2_cost': 18, 'part2_inspect_cost': 3,
         'product_defect_rate': 0.10, 'assembly_cost': 6, 'product_inspect_cost': 3,
-        'product_price': 56, 'exchange_loss_rate': 30/56, 'disassemble_cost': 5
+        'market_price': 56, 'replacement_cost': 30, 'disassemble_cost': 5
     },
     {
-        'component_1_defect_rate': 0.20, 'component_1_price': 4, 'component_1_inspect_cost': 1,
-        'component_2_defect_rate': 0.20, 'component_2_price': 18, 'component_2_inspect_cost': 1,
+        'part1_defect_rate': 0.20, 'part1_cost': 4, 'part1_inspect_cost': 1,
+        'part2_defect_rate': 0.20, 'part2_cost': 18, 'part2_inspect_cost': 1,
         'product_defect_rate': 0.20, 'assembly_cost': 6, 'product_inspect_cost': 2,
-        'product_price': 56, 'exchange_loss_rate': 30/56, 'disassemble_cost': 5
+        'market_price': 56, 'replacement_cost': 30, 'disassemble_cost': 5
     },
     {
-        'component_1_defect_rate': 0.10, 'component_1_price': 4, 'component_1_inspect_cost': 8,
-        'component_2_defect_rate': 0.20, 'component_2_price': 18, 'component_2_inspect_cost': 1,
+        'part1_defect_rate': 0.10, 'part1_cost': 4, 'part1_inspect_cost': 8,
+        'part2_defect_rate': 0.20, 'part2_cost': 18, 'part2_inspect_cost': 1,
         'product_defect_rate': 0.10, 'assembly_cost': 6, 'product_inspect_cost': 2,
-        'product_price': 56, 'exchange_loss_rate': 10/56, 'disassemble_cost': 5
+        'market_price': 56, 'replacement_cost': 10, 'disassemble_cost': 5
     },
     {
-        'component_1_defect_rate': 0.05, 'component_1_price': 4, 'component_1_inspect_cost': 2,
-        'component_2_defect_rate': 0.05, 'component_2_price': 18, 'component_2_inspect_cost': 3,
+        'part1_defect_rate': 0.05, 'part1_cost': 4, 'part1_inspect_cost': 2,
+        'part2_defect_rate': 0.05, 'part2_cost': 18, 'part2_inspect_cost': 3,
         'product_defect_rate': 0.05, 'assembly_cost': 6, 'product_inspect_cost': 2,
-        'product_price': 56, 'exchange_loss_rate': 10/56, 'disassemble_cost': 40
+        'market_price': 56, 'replacement_cost': 10, 'disassemble_cost': 40
     }
 ]
 
-    for i, params in enumerate(scenarios, 1):
-        print(f"\n情况 {i}:")
-        best_decisions, best_metrics = optimize_decisions(params)
-        
-        print("最优决策:")
-        for key, value in best_decisions.items():
-            print(f"  {key}: {'是' if value else '否'}")
-        
-        print("决策结果:")
-        for key, value in best_metrics.items():
-            print(f"  {key}: {value:.2f}")
+for i, situation in enumerate(situations, 1):
+    best_decisions, best_cost = analyze_situation(situation)
+    print(f"\n情况 {i}:")
+    print(f"最优决策: {best_decisions}")
+    print(f"最低成本: {best_cost:.2f}")
+    print("决策依据:")
+    print(f"  - {'检测' if best_decisions['inspect_part1'] else '不检测'}零配件1")
+    print(f"  - {'检测' if best_decisions['inspect_part2'] else '不检测'}零配件2")
+    print(f"  - {'检测' if best_decisions['inspect_product'] else '不检测'}成品")
+    print(f"  - {'拆解' if best_decisions['disassemble_defects'] else '不拆解'}不合格成品")
