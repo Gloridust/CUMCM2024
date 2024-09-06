@@ -1,0 +1,9 @@
+问题2结果:
+最优决策: {'component_inspections': (False, False), 'product_inspections': (False,), 'product_disassembles': (True,)}
+估计成本: 31.278230000000004
+估计次品率: {'components': [0.09818000000000002, 0.09881000000000002], 'products': [0.10063000000000002]}
+
+问题3结果:
+最优决策: {'component_inspections': (False, False, False, False, False, False, False, False), 'product_inspections': (False, False, False), 'product_disassembles': (True, True, True)}
+估计成本: 100.53693999999999
+估计次品率: {'components': [0.0999, 0.09845000000000002, 0.09873000000000001, 0.10003000000000002, 0.09772000000000002, 0.10036000000000002, 0.10002000000000001, 0.10072000000000002], 'products': [0.09921, 0.10018000000000002, 0.09947000000000002]}

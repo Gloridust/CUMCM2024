@@ -1,0 +1,5 @@
+最优决策:
+零配件检测: (False, False, False, False, False, False, False, False)
+半成品/成品检测: (False, False, True)
+半成品/成品拆解: (True, True, True)
+最低成本: 102.59999999999998
