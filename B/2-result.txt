@@ -1,0 +1,53 @@
+情况 1:
+最优决策: {'inspect_part1': False, 'inspect_part2': False, 'inspect_product': False, 'disassemble_defects': True}
+最低成本: 29.10
+决策依据:
+  - 不检测零配件1
+  - 不检测零配件2
+  - 不检测成品
+  - 拆解不合格成品
+
+情况 2:
+最优决策: {'inspect_part1': False, 'inspect_part2': False, 'inspect_product': False, 'disassemble_defects': True}
+最低成本: 30.20
+决策依据:
+  - 不检测零配件1
+  - 不检测零配件2
+  - 不检测成品
+  - 拆解不合格成品
+
+情况 3:
+最优决策: {'inspect_part1': False, 'inspect_part2': False, 'inspect_product': True, 'disassemble_defects': True}
+最低成本: 31.50
+决策依据:
+  - 不检测零配件1
+  - 不检测零配件2
+  - 检测成品
+  - 拆解不合格成品
+
+情况 4:
+最优决策: {'inspect_part1': False, 'inspect_part2': False, 'inspect_product': True, 'disassemble_defects': True}
+最低成本: 31.00
+决策依据:
+  - 不检测零配件1
+  - 不检测零配件2
+  - 检测成品
+  - 拆解不合格成品
+
+情况 5:
+最优决策: {'inspect_part1': False, 'inspect_part2': False, 'inspect_product': False, 'disassemble_defects': True}
+最低成本: 29.50
+决策依据:
+  - 不检测零配件1
+  - 不检测零配件2
+  - 不检测成品
+  - 拆解不合格成品
+
+情况 6:
+最优决策: {'inspect_part1': False, 'inspect_part2': False, 'inspect_product': False, 'disassemble_defects': False}
+最低成本: 29.90
+决策依据:
+  - 不检测零配件1
+  - 不检测零配件2
+  - 不检测成品
+  - 不拆解不合格成品
