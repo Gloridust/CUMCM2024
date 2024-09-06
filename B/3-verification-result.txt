@@ -1,0 +1,36 @@
+最优决策:
+零配件检测: (False, False, False, False, False, False, False, False)
+半成品/成品检测: (False, False, False)
+半成品/成品拆解: (True, True, True)
+最低成本: 100.60
+
+给定决策的成本:
+成本: 100.60
+
+验证结果:
+验证通过：给定的决策是最优的
+
+敏感性分析:
+component_defect_rates[0] 增加10%后的最优成本: 100.62
+component_defect_rates[1] 增加10%后的最优成本: 100.68
+component_defect_rates[2] 增加10%后的最优成本: 100.72
+component_defect_rates[3] 增加10%后的最优成本: 100.62
+component_defect_rates[4] 增加10%后的最优成本: 100.68
+component_defect_rates[5] 增加10%后的最优成本: 100.72
+component_defect_rates[6] 增加10%后的最优成本: 100.68
+component_defect_rates[7] 增加10%后的最优成本: 100.72
+component_prices[0] 增加10%后的最优成本: 100.82
+component_prices[1] 增加10%后的最优成本: 101.48
+component_prices[2] 增加10%后的最优成本: 101.92
+component_prices[3] 增加10%后的最优成本: 100.82
+component_prices[4] 增加10%后的最优成本: 101.48
+component_prices[5] 增加10%后的最优成本: 101.92
+component_prices[6] 增加10%后的最优成本: 101.48
+component_prices[7] 增加10%后的最优成本: 101.92
+product_defect_rates[0] 增加10%后的最优成本: 100.66
+product_defect_rates[1] 增加10%后的最优成本: 100.66
+product_defect_rates[2] 增加10%后的最优成本: 101.10
+assembly_costs[0] 增加10%后的最优成本: 101.40
+assembly_costs[1] 增加10%后的最优成本: 101.40
+assembly_costs[2] 增加10%后的最优成本: 101.40
+replacement_cost 增加10%后的最优成本: 101.00
