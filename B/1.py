@@ -1,81 +1,12 @@
 import math
+import numpy as np
 import scipy.stats as stats
+import matplotlib.pyplot as plt
+import os
 
-def calculate_sample_size(confidence_level, defect_rate, precision):
-    """
-    计算所需的样本量
-    :param confidence_level: 置信水平
-    :param defect_rate: 预期的次品率
-    :param precision: 允许的误差范围
-    :return: 所需的样本量
-    """
-    z_score = stats.norm.ppf((1 + confidence_level) / 2)
-    sample_size = math.ceil((z_score**2 * defect_rate * (1 - defect_rate)) / (precision**2))
-    return sample_size
-
-def binomial_test(n, x, p, alternative='greater'):
-    """
-    进行二项分布检验
-    :param n: 样本量
-    :param x: 不合格品数量
-    :param p: 标称次品率
-    :param alternative: 替代假设类型 ('greater', 'less', 'two-sided')
-    :return: p值
-    """
-    result = stats.binomtest(x, n, p, alternative=alternative)
-    return result.pvalue
-
-def design_sampling_plan(nominal_defect_rate, confidence_level_reject=0.95, confidence_level_accept=0.90):
-    """
-    设计抽样检测方案
-    :param nominal_defect_rate: 标称次品率
-    :param confidence_level_reject: 拒收的置信水平
-    :param confidence_level_accept: 接收的置信水平
-    :return: 抽样方案
-    """
-    # 计算拒收所需的最小样本量
-    sample_size_reject = calculate_sample_size(confidence_level_reject, nominal_defect_rate, 0.05)
-    
-    # 计算接收所需的最小样本量
-    sample_size_accept = calculate_sample_size(confidence_level_accept, nominal_defect_rate, 0.05)
-    
-    # 取较大的样本量
-    sample_size = max(sample_size_reject, sample_size_accept)
-    
-    # 计算拒收界限
-    reject_limit = math.ceil(nominal_defect_rate * sample_size)
-    
-    return {
-        "sample_size": sample_size,
-        "reject_limit": reject_limit,
-        "nominal_defect_rate": nominal_defect_rate,
-        "confidence_level_reject": confidence_level_reject,
-        "confidence_level_accept": confidence_level_accept
-    }
-
-def execute_sampling_plan(plan, actual_defects):
-    """
-    执行抽样检测方案
-    :param plan: 抽样方案
-    :param actual_defects: 实际检测到的不合格品数量
-    :return: 检测结果
-    """
-    p_value = binomial_test(plan["sample_size"], actual_defects, plan["nominal_defect_rate"])
-    
-    if actual_defects > plan["reject_limit"]:
-        decision = "拒收"
-    else:
-        decision = "接收"
-    
-    return {
-        "decision": decision,
-        "p_value": p_value,
-        "actual_defects": actual_defects
-    }
-
-# 示例使用
-import math
-import scipy.stats as stats
+# 设置中文字体
+plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # 或者使用 'Heiti TC'
+plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 
 def calculate_sample_size(confidence_level, defect_rate, precision):
     z_score = stats.norm.ppf((1 + confidence_level) / 2)
@@ -121,8 +52,65 @@ def execute_sampling_plan(plan, actual_defects):
         "actual_defects": actual_defects
     }
 
+def plot_sample_size_vs_confidence(defect_rate, precision):
+    confidence_levels = np.linspace(0.5, 0.99, 100)
+    sample_sizes = [calculate_sample_size(cl, defect_rate, precision) for cl in confidence_levels]
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(confidence_levels, sample_sizes)
+    plt.title('样本量与置信水平的关系')
+    plt.xlabel('置信水平')
+    plt.ylabel('样本量')
+    plt.grid(True)
+    plt.savefig('./1/sample_size_vs_confidence.png')
+    plt.close()
+
+def plot_decision_boundaries(plan):
+    x = np.arange(0, plan['sample_size'] + 1)
+    y_reject = stats.binom.pmf(x, plan['sample_size'], plan['nominal_defect_rate'])
+    
+    plt.figure(figsize=(12, 6))
+    plt.bar(x, y_reject, alpha=0.5, label='二项分布')
+    plt.axvline(plan['reject_limit'], color='r', linestyle='--', label='拒收界限')
+    plt.axvline(plan['accept_limit'], color='g', linestyle='--', label='接收界限')
+    plt.title('拒收界限和接收界限的分布')
+    plt.xlabel('不合格品数量')
+    plt.ylabel('概率')
+    plt.legend()
+    plt.savefig('./1/decision_boundaries.png')
+    plt.close()
+
+def plot_decision_regions(plan):
+    defect_rates = np.linspace(0, 0.3, 100)
+    sample_sizes = np.arange(0, plan['sample_size'] + 1)
+    
+    decision_matrix = np.zeros((len(defect_rates), len(sample_sizes)))
+    for i, rate in enumerate(defect_rates):
+        for j, size in enumerate(sample_sizes):
+            p_value = binomial_test(plan['sample_size'], size, rate)
+            if size > plan['reject_limit']:
+                decision_matrix[i, j] = 2  # 拒收
+            elif size <= plan['accept_limit']:
+                decision_matrix[i, j] = 0  # 接收
+            else:
+                decision_matrix[i, j] = 1  # 进一步检验
+    
+    plt.figure(figsize=(12, 8))
+    plt.imshow(decision_matrix, aspect='auto', extent=[0, plan['sample_size'], 0.3, 0], cmap='RdYlGn')
+    plt.colorbar(ticks=[0, 1, 2], label='决策 (0:接收, 1:进一步检验, 2:拒收)')
+    plt.title('不同次品率下的决策区域')
+    plt.xlabel('不合格品数量')
+    plt.ylabel('实际次品率')
+    plt.axhline(plan['nominal_defect_rate'], color='k', linestyle='--', label='标称次品率')
+    plt.legend()
+    plt.savefig('./1/decision_regions.png')
+    plt.close()
+
 # 主程序
 if __name__ == "__main__":
+    # 创建保存图片的文件夹
+    os.makedirs('./1', exist_ok=True)
+
     nominal_defect_rate = 0.10  # 10%的标称次品率
     plan = design_sampling_plan(nominal_defect_rate)
     print("抽样检测方案:")
@@ -130,6 +118,11 @@ if __name__ == "__main__":
     print(f"拒收界限 (95% 信度): {plan['reject_limit']}")
     print(f"接收界限 (90% 信度): {plan['accept_limit']}")
     print(f"标称次品率: {plan['nominal_defect_rate']:.2%}")
+    
+    # 生成可视化图表
+    plot_sample_size_vs_confidence(nominal_defect_rate, 0.05)
+    plot_decision_boundaries(plan)
+    plot_decision_regions(plan)
     
     print("\n情况1: 95% 信度下拒收")
     actual_defects_reject = plan['reject_limit'] + 1
