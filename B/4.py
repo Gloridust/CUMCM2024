@@ -203,9 +203,9 @@ def plot_cost_distribution(costs, problem_num):
     """绘制成本分布图"""
     plt.figure(figsize=(10, 6))
     plt.hist(costs, bins=30, edgecolor='black')
-    plt.xlabel('成本')
-    plt.ylabel('频率')
-    plt.title(f'问题{problem_num}：成本分布分析')
+    plt.xlabel('成本', fontsize=21)
+    plt.ylabel('频率', fontsize=21)
+    plt.title(f'问题{problem_num}：成本分布分析', fontsize=21)
     plt.savefig(f'./4/cost_variability_{problem_num}.png', dpi=300)
     plt.close()
 
