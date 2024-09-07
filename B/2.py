@@ -1,4 +1,10 @@
 import numpy as np
+import matplotlib.pyplot as plt
+import os
+
+# 设置中文字体
+plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # 或者使用 'Heiti TC'
+plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 
 def calculate_cost(params, decisions):
     """
@@ -142,3 +148,108 @@ for i, situation in enumerate(situations, 1):
     print(f"  - {'检测' if best_decisions['inspect_part2'] else '不检测'}零配件2")
     print(f"  - {'检测' if best_decisions['inspect_product'] else '不检测'}成品")
     print(f"  - {'拆解' if best_decisions['disassemble_defects'] else '不拆解'}不合格成品")
+
+
+def plot_optimal_decisions(situations, results):
+    """
+    绘制各情况下的最优决策比较图
+    """
+    decisions = ['inspect_part1', 'inspect_part2', 'inspect_product', 'disassemble_defects']
+    decision_labels = ['检测零件1', '检测零件2', '检测成品', '拆解不合格品']
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    for i, (situation, result) in enumerate(zip(situations, results)):
+        y_pos = [i] * len(decisions)
+        colors = ['green' if result['best_decisions'][d] else 'red' for d in decisions]
+        ax.scatter(y_pos, decisions, c=colors, s=100)
+    
+    ax.set_yticks(range(len(decisions)))
+    ax.set_yticklabels(decision_labels)
+    ax.set_xticks(range(len(situations)))
+    ax.set_xticklabels([f'情况{i+1}' for i in range(len(situations))])
+    ax.set_xlabel('不同情况')
+    ax.set_title('各情况下的最优决策比较')
+    
+    # 添加图例
+    ax.scatter([], [], c='green', label='是', s=100)
+    ax.scatter([], [], c='red', label='否', s=100)
+    ax.legend()
+    
+    plt.tight_layout()
+    plt.savefig('./2/optimal_decisions.png', dpi=300)
+    plt.close()
+
+def plot_minimum_costs(situations, results):
+    """
+    绘制各情况下的最低成本比较图
+    """
+    costs = [result['best_cost'] for result in results]
+    
+    plt.figure(figsize=(10, 6))
+    plt.bar(range(1, len(situations) + 1), costs)
+    plt.xlabel('情况')
+    plt.ylabel('最低成本')
+    plt.title('各情况下的最低成本比较')
+    plt.xticks(range(1, len(situations) + 1))
+    
+    for i, cost in enumerate(costs):
+        plt.text(i + 1, cost, f'{cost:.2f}', ha='center', va='bottom')
+    
+    plt.tight_layout()
+    plt.savefig('./2/minimum_costs.png', dpi=300)
+    plt.close()
+
+def plot_sensitivity_analysis(situation, param_name, param_range):
+    """
+    绘制参数敏感性分析图
+    """
+    costs = []
+    for value in param_range:
+        temp_situation = situation.copy()
+        temp_situation[param_name] = value
+        _, cost = analyze_situation(temp_situation)
+        costs.append(cost)
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(param_range, costs, marker='o')
+    plt.xlabel(param_name)
+    plt.ylabel('成本')
+    plt.title(f'{param_name} 对成本的影响')
+    plt.grid(True)
+    
+    plt.tight_layout()
+    plt.savefig(f'./2/sensitivity_{param_name}.png', dpi=300)
+    plt.close()
+
+# 主程序
+if __name__ == "__main__":
+    # 创建保存图片的文件夹
+    os.makedirs('./2', exist_ok=True)
+    
+    results = []
+    for i, situation in enumerate(situations, 1):
+        best_decisions, best_cost = analyze_situation(situation)
+        results.append({
+            'best_decisions': best_decisions,
+            'best_cost': best_cost
+        })
+        print(f"\n情况 {i}:")
+        print(f"最优决策: {best_decisions}")
+        print(f"最低成本: {best_cost:.2f}")
+        print("决策依据:")
+        print(f"  - {'检测' if best_decisions['inspect_part1'] else '不检测'}零配件1")
+        print(f"  - {'检测' if best_decisions['inspect_part2'] else '不检测'}零配件2")
+        print(f"  - {'检测' if best_decisions['inspect_product'] else '不检测'}成品")
+        print(f"  - {'拆解' if best_decisions['disassemble_defects'] else '不拆解'}不合格成品")
+    
+    # 绘制可视化图表
+    plot_optimal_decisions(situations, results)
+    plot_minimum_costs(situations, results)
+    
+    # 对第一种情况进行敏感性分析
+    base_situation = situations[0]
+    plot_sensitivity_analysis(base_situation, 'part1_defect_rate', np.linspace(0, 0.3, 30))
+    plot_sensitivity_analysis(base_situation, 'part2_defect_rate', np.linspace(0, 0.3, 30))
+    plot_sensitivity_analysis(base_situation, 'product_defect_rate', np.linspace(0, 0.3, 30))
+    plot_sensitivity_analysis(base_situation, 'replacement_cost', np.linspace(0, 20, 30))

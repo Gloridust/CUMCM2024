@@ -76,8 +76,29 @@ def plot_decision_boundaries(plan):
     plt.title('拒收界限和接收界限的分布')
     plt.xlabel('不合格品数量')
     plt.ylabel('概率')
+    
+    # 调整x轴刻度
+    max_x = min(plan['sample_size'], int(plan['nominal_defect_rate'] * plan['sample_size'] * 3))
+    plt.xlim(0, max_x)
+    
+    # 设置x轴刻度间隔
+    tick_interval = max(1, max_x // 10)  # 确保至少有10个刻度，但间隔不小于1
+    plt.xticks(np.arange(0, max_x + 1, tick_interval))
+    
+    # 在图中标注重要的点
+    plt.annotate(f'接收界限: {plan["accept_limit"]}', 
+                 xy=(plan['accept_limit'], 0), 
+                 xytext=(plan['accept_limit'], max(y_reject) / 2),
+                 arrowprops=dict(facecolor='green', shrink=0.05))
+    
+    plt.annotate(f'拒收界限: {plan["reject_limit"]}', 
+                 xy=(plan['reject_limit'], 0), 
+                 xytext=(plan['reject_limit'], max(y_reject) / 2),
+                 arrowprops=dict(facecolor='red', shrink=0.05))
+    
     plt.legend()
-    plt.savefig('./1/decision_boundaries.png')
+    plt.tight_layout()
+    plt.savefig('./1/decision_boundaries.png', dpi=300)
     plt.close()
 
 def plot_decision_regions(plan):
