@@ -166,8 +166,8 @@ def plot_cost_breakdown(params, best_decisions):
 
     plt.figure(figsize=(10, 6))
     # 增大字体大小
-    plt.pie(costs.values(), labels=costs.keys(), autopct='%1.1f%%', textprops={'fontsize': 24})
-    plt.title('成本构成', fontsize=24)
+    plt.pie(costs.values(), labels=costs.keys(), autopct='%1.1f%%', textprops={'fontsize': 18})
+    plt.title('成本构成', fontsize=18)
     plt.savefig('./3/cost_breakdown.png', dpi=300)
     plt.close()
 
