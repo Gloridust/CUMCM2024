@@ -138,3 +138,165 @@ $\min \text{Total Cost} = \text{Component Cost} + \text{Assembly Cost} + \text{I
 ## 参考文献
 
 [此处列出相关文献]
+
+# 算法详述
+
+## 1. 数学模型
+
+在问题3中，我们面对的是一个离散优化问题，具体来说是一个组合优化问题。我们的目标是在所有可能的决策组合中找到使总成本最小的一组决策。
+
+### 1.1 决策变量
+
+我们有三类二元决策变量：
+
+1. $x_i$ : 是否检测第i个零配件 (i = 1, 2, ..., 8)
+2. $y_j$ : 是否检测第j个半成品/成品 (j = 1, 2, 3)
+3. $z_j$ : 是否拆解第j个半成品/成品中检测出的不合格品 (j = 1, 2, 3)
+
+每个决策变量都是二元的，即取值为0或1。
+
+### 1.2 目标函数
+
+我们的目标是最小化总成本，可以表示为：
+
+$\min C(x_1, ..., x_8, y_1, y_2, y_3, z_1, z_2, z_3)$
+
+其中C是一个复杂的成本函数，包括：
+
+- 零配件成本：$\sum_{i=1}^8 [p_i(1+d_i(1-x_i)) + c_ix_i]$
+- 装配成本：$\sum_{j=1}^3 A_j$
+- 检测成本：$\sum_{j=1}^3 C_jy_j$
+- 不合格品处理成本：$\sum_{j=1}^3 D_j[z_jR_j + (1-z_j)(\sum_{i=1}^8 p_i + A_j)]$
+- 市场调换损失：$(1-y_3)D_3L$
+
+其中，$p_i$是零配件价格，$d_i$是次品率，$c_i$是检测成本，$A_j$是装配成本，$C_j$是半成品/成品检测成本，$D_j$是半成品/成品次品率，$R_j$是拆解费用，$L$是调换损失。
+
+## 2. 算法：穷举搜索
+
+由于我们的决策变量是离散的，并且数量有限，我们可以使用穷举搜索算法来找到全局最优解。
+
+### 2.1 算法步骤
+
+1. 生成所有可能的决策组合
+2. 对每个决策组合，计算相应的总成本
+3. 找出导致最小总成本的决策组合
+
+### 2.2 搜索空间
+
+我们总共有14个二元决策变量（8个零配件 + 3个半成品/成品检测 + 3个拆解决策），因此搜索空间的大小是：
+
+$2^{14} = 16,384$
+
+虽然这个数字看起来很大，但对于现代计算机来说，遍历这个空间是完全可行的。
+
+## 3. Python实现
+
+我们使用Python的itertools库来高效地生成所有可能的决策组合。
+
+### 3.1 生成决策组合
+
+我们可以使用itertools.product函数来生成所有可能的组合：
+
+```python
+import itertools
+
+def generate_decisions():
+    return itertools.product(
+        itertools.product([0, 1], repeat=8),  # 零配件检测决策
+        itertools.product([0, 1], repeat=3),  # 半成品/成品检测决策
+        itertools.product([0, 1], repeat=3)   # 拆解决策
+    )
+```
+
+这个函数生成一个迭代器，每次迭代返回一个可能的决策组合。
+
+### 3.2 计算成本
+
+对于每个决策组合，我们计算相应的成本：
+
+```python
+def calculate_cost(decisions, params):
+    x, y, z = decisions
+    cost = 0
+    # 计算零配件成本
+    for i in range(8):
+        cost += params['p'][i] * (1 + params['d'][i] * (1 - x[i])) + params['c'][i] * x[i]
+    # 计算装配、检测和不合格品处理成本
+    for j in range(3):
+        cost += params['A'][j] + params['C'][j] * y[j]
+        cost += params['D'][j] * (z[j] * params['R'][j] + 
+                                  (1 - z[j]) * (sum(params['p']) + params['A'][j]))
+    # 计算市场调换损失
+    cost += (1 - y[2]) * params['D'][2] * params['L']
+    return cost
+```
+
+### 3.3 找到最优决策
+
+最后，我们遍历所有决策组合，找出成本最低的：
+
+```python
+def optimize_decisions(params):
+    best_cost = float('inf')
+    best_decision = None
+    for decision in generate_decisions():
+        cost = calculate_cost(decision, params)
+        if cost < best_cost:
+            best_cost = cost
+            best_decision = decision
+    return best_decision, best_cost
+```
+
+## 4. 数学公式与Python代码的对应
+
+让我们看看主要的数学公式是如何在Python代码中实现的：
+
+1. 零配件成本：
+   数学公式：$\sum_{i=1}^8 [p_i(1+d_i(1-x_i)) + c_ix_i]$
+   Python实现：
+   ```python
+   for i in range(8):
+       cost += params['p'][i] * (1 + params['d'][i] * (1 - x[i])) + params['c'][i] * x[i]
+   ```
+
+2. 装配和检测成本：
+   数学公式：$\sum_{j=1}^3 (A_j + C_jy_j)$
+   Python实现：
+   ```python
+   for j in range(3):
+       cost += params['A'][j] + params['C'][j] * y[j]
+   ```
+
+3. 不合格品处理成本：
+   数学公式：$\sum_{j=1}^3 D_j[z_jR_j + (1-z_j)(\sum_{i=1}^8 p_i + A_j)]$
+   Python实现：
+   ```python
+   for j in range(3):
+       cost += params['D'][j] * (z[j] * params['R'][j] + 
+                                 (1 - z[j]) * (sum(params['p']) + params['A'][j]))
+   ```
+
+4. 市场调换损失：
+   数学公式：$(1-y_3)D_3L$
+   Python实现：
+   ```python
+   cost += (1 - y[2]) * params['D'][2] * params['L']
+   ```
+
+## 5. 算法的数学性质
+
+这个穷举搜索算法具有以下数学性质：
+
+1. 完备性：算法保证能找到全局最优解，因为它检查了所有可能的决策组合。
+
+2. 时间复杂度：$O(2^n)$，其中n是决策变量的总数（在我们的例子中是14）。
+
+3. 空间复杂度：$O(n)$，因为我们只需要存储当前最佳决策和相应的成本。
+
+4. 确定性：对于给定的输入参数，算法总是产生相同的结果。
+
+5. 可并行化：生成和评估决策组合的过程可以很容易地并行化，以提高效率。
+
+## 结论
+
+通过使用Python的itertools库，我们能够高效地实现这个穷举搜索算法。虽然穷举搜索在决策变量数量增加时可能变得计算密集，但对于我们的问题规模（14个二元变量），它是一个简单而有效的方法。这个方法的主要优势在于其简单性和保证找到全局最优解的能力。在实际应用中，如果问题规模进一步增大，可能需要考虑更高级的优化技术，如动态规划、分支定界或元启发式算法。
