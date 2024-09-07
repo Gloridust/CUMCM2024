@@ -1,0 +1,21 @@
+最优决策:
+零配件检测: (False, False)
+产品检测: False
+产品拆解: True
+最低成本: 31.30
+
+给定决策的成本:
+成本: 31.30
+
+验证结果:
+验证通过：给定的决策是最优的
+
+敏感性分析:
+component_defect_rates[0] 增加10%后的最优成本: 31.34
+component_defect_rates[1] 增加10%后的最优成本: 31.48
+component_prices[0] 增加10%后的最优成本: 31.74
+component_prices[1] 增加10%后的最优成本: 33.28
+component_inspect_costs[0] 增加10%后的最优成本: 31.30
+component_inspect_costs[1] 增加10%后的最优成本: 31.30
+product_defect_rate 增加10%后的最优成本: 31.41
+replacement_cost 增加10%后的最优成本: 31.36
